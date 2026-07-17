@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>くらしの安全相談AI</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#143a66">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    background: #f2f5f9;
+    color: #223;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #143a66;
+    color: #fff;
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  header img { width: 36px; height: 36px; border-radius: 8px; }
+  header .titles { flex: 1; }
+  header h1 { font-size: 17px; }
+  header .sub { font-size: 11px; opacity: 0.8; }
+  #settingsBtn {
+    background: rgba(255,255,255,0.15);
+    border: none; color: #fff;
+    font-size: 20px;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 88%;
+    padding: 11px 14px;
+    border-radius: 14px;
+    font-size: 15px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: #143a66;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.ai {
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid #dde4ee;
+    border-bottom-left-radius: 4px;
+  }
+  .msg.ai b { color: #143a66; }
+  .msg.thinking { color: #889; }
+
+  .emergency {
+    align-self: stretch;
+    background: #fff3f0;
+    border: 2px solid #e05b4b;
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .emergency .etitle { font-weight: bold; color: #c23b2b; font-size: 15px; margin-bottom: 6px; }
+  .emergency a.callbtn {
+    display: block;
+    text-align: center;
+    background: #e05b4b;
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    margin-top: 8px;
+  }
+  .emergency a.callbtn.sub2 { background: #a06a2c; }
+  .emergency a.callbtn.sub3 { background: #2c6aa0; }
+
+  .refnote {
+    align-self: flex-start;
+    font-size: 11px;
+    color: #99a;
+    margin-top: -8px;
+    padding-left: 6px;
+  }
+
+  #quick {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+  #quick button {
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid #c8d4e4;
+    color: #2c4a72;
+    border-radius: 18px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  #inputBar {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid #dde4ee;
+  }
+  #inputBar textarea {
+    flex: 1;
+    border: 1px solid #c8d4e4;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 16px;
+    font-family: inherit;
+    resize: none;
+    height: 44px;
+    max-height: 110px;
+  }
+  #sendBtn {
+    background: #f0b237;
+    border: none;
+    color: #143a66;
+    font-weight: bold;
+    font-size: 15px;
+    border-radius: 12px;
+    padding: 0 18px;
+    cursor: pointer;
+  }
+  #sendBtn:disabled { opacity: 0.5; }
+
+  footer {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #99a;
+    text-align: center;
+    padding: 4px 10px 6px;
+    background: #fff;
+  }
+
+  /* 設定モーダル */
+  #settingsModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 10;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #settingsModal.open { display: flex; }
+  .modalBox {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+  }
+  .modalBox h2 { font-size: 16px; color: #143a66; margin-bottom: 10px; }
+  .modalBox p { font-size: 13px; line-height: 1.7; color: #556; margin-bottom: 10px; }
+  .modalBox input {
+    width: 100%;
+    border: 1px solid #c8d4e4;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .modalBox .row { display: flex; gap: 8px; }
+  .modalBox button {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 11px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .modalBox .save { background: #143a66; color: #fff; }
+  .modalBox .cancel { background: #e8edf4; color: #445; }
+  .modalBox a { color: #2c6aa0; }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="icon-192.png" alt="">
+  <div class="titles">
+    <h1>くらしの安全相談AI</h1>
+    <div class="sub">詐欺・防犯・暮らしの困りごとをなんでも聞いてください</div>
+  </div>
+  <button id="settingsBtn" title="設定">⚙️</button>
+</header>
+
+<div id="chat"></div>
+
+<div id="quick">
+  <button>市役所から還付金の電話が来た</button>
+  <button>パソコンにウイルス警告が出た</button>
+  <button>子どもの留守番の注意点は？</button>
+  <button>実家の親を詐欺から守るには？</button>
+  <button>荷物の不在通知SMSが届いた</button>
+  <button>ご近所の騒音、どこに相談すればいい？</button>
+</div>
+
+<div id="inputBar">
+  <textarea id="input" placeholder="例：息子を名乗る電話がかかってきた" rows="1"></textarea>
+  <button id="sendBtn">送信</button>
+</div>
+
+<footer>このAIの回答は一般的な防犯情報です。緊急時は110番へ。個人情報は入力しないでください。</footer>
+
+<div id="settingsModal">
+  <div class="modalBox">
+    <h2>⚙️ 設定（Gemini APIキー）</h2>
+    <p>このアプリはGoogleのAI「Gemini」を使います。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>で無料のAPIキーを取得し、下に貼り付けてください。キーはこのスマホ（ブラウザ）の中にだけ保存され、外部には送られません。</p>
+    <input type="password" id="apiKeyInput" placeholder="AIza... で始まるキー" autocomplete="off">
+    <div class="row">
+      <button class="cancel" id="cancelBtn">閉じる</button>
+      <button class="save" id="saveBtn">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script src="knowledge.js"></script>
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
+
+const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+// ---- 緊急ワード検知 ----
+const EMERGENCY_PATTERNS = [
+  /(今|いま|たった今|さっき).{0,20}(電話|かかって|来て|きて|訪ねて|立って|ドア|玄関|インターホン|チャイム)/,
+  /(電話|男|女|人|業者).{0,15}(来て|きて|かかって)(いる|います|る)/,
+  /(助けて|たすけて)/,
+  /(不審者|知らない人).{0,10}(いる|います|立って|ついて|うろうろ)/,
+  /(入られた|侵入され|盗まれた|とられた|奪われ|襲われ|殴られ|刺され|つけられて)/,
+  /(振り込んで|振込んで|渡して|払って|送って)(しまった|しまいました)/,
+  /(緊急|きんきゅう)/
+];
+function isEmergency(text) {
+  return EMERGENCY_PATTERNS.some(re => re.test(text));
+}
+
+// ---- HTMLエスケープ（XSS対策：入力を安全な文字に変換）----
+function esc(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function addMsg(cls, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  if (cls === "ai") {
+    // **太字** だけ許可した簡易整形（先にエスケープしてから）
+    div.innerHTML = esc(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  } else {
+    div.textContent = text;
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function addEmergencyBanner() {
+  const div = document.createElement("div");
+  div.className = "emergency";
+  div.innerHTML = `
+    <div class="etitle">⚠️ 緊急の可能性があります</div>
+    今まさに危険・被害が起きている場合は、AIの答えを待たずに電話してください。
+    <a class="callbtn" href="tel:110">📞 110（事件・緊急）</a>
+    <a class="callbtn sub2" href="tel:%239110">📞 #9110（警察相談・急がない相談）</a>
+    <a class="callbtn sub3" href="tel:188">📞 188（消費者ホットライン）</a>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ---- 知識検索（キーワード一致で上位3件）----
+function findKnowledge(question) {
+  const scored = KNOWLEDGE.map(k => {
+    let score = 0;
+    for (const kw of k.keywords) {
+      if (question.includes(kw)) score += 2;
+    }
+    if (question.includes(k.topic)) score += 3;
+    return { score, k };
+  }).filter(x => x.score > 0);
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map(x => x.k);
+}
+
+// ---- Gemini呼び出し ----
+const SYSTEM_PROMPT = `あなたは「くらしの安全相談AI」です。防犯・詐欺対策に加えて、暮らしの困りごと（近隣トラブル・消費者トラブルなど）にも詳しい経験豊富なアドバイザーとして、高齢者にも分かるやさしい日本語で答えてください。
+
+暮らしの相談（騒音・ご近所・買い物のトラブルなど）には、適切な相談窓口と、角が立ちにくい現実的な対処法を案内する。
+
+ルール：
+- 断定しない。「詐欺です」ではなく「詐欺の典型的な手口と一致する特徴があります」のように言う。
+- 取るべき行動を必ず番号付きで、具体的に示す。
+- 今まさに危険が迫っている相談なら、最初に110番（緊急）または#9110（警察相談）を案内する。
+- 金銭被害が出ている相談には、振込先の銀行への連絡と警察#9110、消費者ホットライン188を案内する。
+- 法律の断定的な判断はせず、必要なら専門窓口を案内する。
+- 相談者を責めない。「気づけてよかった」という姿勢で安心させる。
+- 回答は長すぎないように。要点を先に、詳細は後に。
+- 参考知識が与えられた場合はそれを最優先で使う。
+
+出力形式：普通の文章。見出し記号(#)は使わない。強調は**太字**のみ可。`;
+
+async function askGemini(question, refs, history) {
+  const apiKey = localStorage.getItem("anzen_api_key");
+  if (!apiKey) throw new Error("NO_KEY");
+
+  let prompt = question;
+  if (refs.length > 0) {
+    const refText = refs.map(k => `【${k.topic}】${k.content}`).join("\n\n");
+    prompt = `参考知識：\n${refText}\n\n相談：${question}`;
+  }
+
+  const contents = [
+    ...history,
+    { role: "user", parts: [{ text: prompt }] }
+  ];
+
+  let lastError = null;
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents,
+            generationConfig: { temperature: 0.4, maxOutputTokens: 4096 }
+          })
+        }
+      );
+      if (!res.ok) {
+        const body = await res.text();
+        lastError = new Error(`API ${res.status}: ${body.slice(0, 200)}`);
+        if (res.status === 400 || res.status === 403) throw lastError; // キー不正は再試行しない
+        continue; // 429や5xxは次のモデルへ
+      }
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return { text, prompt };
+      lastError = new Error("応答が空でした");
+    } catch (e) {
+      if (String(e.message).startsWith("API 4")) throw e;
+      lastError = e;
+    }
+  }
+  throw lastError || new Error("接続できませんでした");
+}
+
+// ---- 会話履歴（Geminiに渡す直近のやりとり）----
+let history = [];
+
+async function send(text) {
+  text = (text || input.value).trim();
+  if (!text) return;
+  input.value = "";
+  input.style.height = "44px";
+  sendBtn.disabled = true;
+
+  addMsg("user", text);
+  if (isEmergency(text)) addEmergencyBanner();
+
+  const refs = findKnowledge(text);
+  const thinking = addMsg("ai thinking", "考えています…");
+
+  try {
+    const { text: answer, prompt } = await askGemini(text, refs, history);
+    thinking.remove();
+    addMsg("ai", answer);
+    if (refs.length > 0) {
+      const note = document.createElement("div");
+      note.className = "refnote";
+      note.textContent = "📚 参照した知識：" + refs.map(k => k.topic).join("・");
+      chat.appendChild(note);
+    }
+    history.push({ role: "user", parts: [{ text: prompt }] });
+    history.push({ role: "model", parts: [{ text: answer }] });
+    if (history.length > 10) history = history.slice(-10); // 直近5往復だけ覚える
+  } catch (e) {
+    thinking.remove();
+    if (e.message === "NO_KEY") {
+      addMsg("ai", "まだAPIキーが設定されていません。右上の⚙️ボタンから、GeminiのAPIキー（無料で取得できます）を設定してください。");
+      openSettings();
+    } else {
+      addMsg("ai", "エラーが発生しました：" + e.message + "\n\n電波状況とAPIキーを確認して、もう一度お試しください。");
+    }
+  }
+  sendBtn.disabled = false;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+sendBtn.addEventListener("click", () => send());
+input.addEventListener("input", () => {
+  input.style.height = "44px";
+  input.style.height = Math.min(input.scrollHeight, 110) + "px";
+});
+
+document.querySelectorAll("#quick button").forEach(btn => {
+  btn.addEventListener("click", () => send(btn.textContent));
+});
+
+// ---- 設定モーダル ----
+const modal = document.getElementById("settingsModal");
+const apiKeyInput = document.getElementById("apiKeyInput");
+function openSettings() {
+  apiKeyInput.value = localStorage.getItem("anzen_api_key") || "";
+  modal.classList.add("open");
+}
+document.getElementById("settingsBtn").addEventListener("click", openSettings);
+document.getElementById("cancelBtn").addEventListener("click", () => modal.classList.remove("open"));
+document.getElementById("saveBtn").addEventListener("click", () => {
+  const key = apiKeyInput.value.trim();
+  if (key) {
+    localStorage.setItem("anzen_api_key", key);
+    addMsg("ai", "APIキーを保存しました。相談をどうぞ！");
+  }
+  modal.classList.remove("open");
+});
+
+// ---- 最初のあいさつ ----
+addMsg("ai", `こんにちは。**くらしの安全相談AI**です。\n詐欺の電話・あやしいメール・防犯の心配ごとから、ご近所トラブルなど暮らしの困りごとまで、なんでも聞いてください。\n\n⚠️ 今まさに危険なとき・被害が起きているときは、迷わず**110番**へ。\n\n下のボタンから、よくある相談を選ぶこともできます。（知識${KNOWLEDGE.length}件を搭載）`);
+
+// ---- PWA（http/httpsのときだけ登録）----
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
