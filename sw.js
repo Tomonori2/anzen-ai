@@ -1,6 +1,6 @@
 // Service Worker＝アプリを裏で支える小さなプログラム。
 // 一度開いたファイルを保存しておき、電波が悪くても画面が開けるようにする。
-const CACHE_NAME = "anzen-ai-v5";
+const CACHE_NAME = "anzen-ai-v6";
 const FILES = [
   "./index.html",
   "./knowledge.js",
